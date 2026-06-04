@@ -1295,6 +1295,194 @@ footer {
   </div>
 </footer>
 
+<!-- CHATBOT MODAL -->
+<div id="vetChatModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);align-items:flex-end;justify-content:flex-end;padding:24px;">
+  <div style="width:360px;max-height:580px;background:#fff;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.25);">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#0d4d4d,#1a6b5a);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:38px;height:38px;background:rgba(255,255,255,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;">🐾</div>
+        <div>
+          <div style="color:#fff;font-weight:700;font-size:14px;">Clínica Veterinaria Alma</div>
+          <div style="color:rgba(255,255,255,0.7);font-size:11px;">● En línea ahora</div>
+        </div>
+      </div>
+      <button onclick="cerrarVetChat()" style="background:none;border:none;color:rgba(255,255,255,0.7);font-size:20px;cursor:pointer;padding:4px;">✕</button>
+    </div>
+    <!-- Mensajes -->
+    <div id="vetChatMsgs" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:#f8faf8;"></div>
+    <!-- Opciones -->
+    <div id="vetChatOpts" style="padding:12px 16px;background:#fff;border-top:1px solid #eee;display:flex;flex-wrap:wrap;gap:8px;"></div>
+    <!-- Restart -->
+    <div id="vetChatRestart" style="display:none;padding:8px 16px 12px;background:#fff;text-align:center;">
+      <button onclick="reiniciarVetChat()" style="background:none;border:1px solid #0d4d4d;color:#0d4d4d;border-radius:100px;padding:6px 16px;font-size:12px;cursor:pointer;font-weight:600;">↺ Ver la demo de nuevo</button>
+    </div>
+  </div>
+</div>
+
+<!-- FAB CHATBOT -->
+<button onclick="abrirVetChat()" id="vetFab" title="Pedir cita" style="position:fixed;bottom:28px;right:28px;z-index:998;width:58px;height:58px;background:linear-gradient(135deg,#0d4d4d,#1a6b5a);border:none;border-radius:50%;cursor:pointer;box-shadow:0 4px 20px rgba(13,77,77,0.45);display:flex;align-items:center;justify-content:center;font-size:26px;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">🐾</button>
+
+<script>
+// ── VET CHATBOT ──
+const VET_FLUJOS = {
+  inicio: {
+    bot: '¡Hola! 👋 Soy el asistente de Clínica Veterinaria Alma. ¿En qué puedo ayudarte?',
+    opts: [{ txt: '🐾 Pedir cita', sig: 'cita_animal' }, { txt: '❓ Tengo una duda', sig: 'duda_inicio' }]
+  },
+  cita_animal: {
+    bot: '¿Qué tipo de mascota tienes?',
+    opts: [{ txt: '🐶 Perro', sig: 'cita_servicio' }, { txt: '🐱 Gato', sig: 'cita_servicio' }, { txt: '🐾 Otro animal', sig: 'cita_servicio' }]
+  },
+  cita_servicio: {
+    bot: '¿Qué necesitas?',
+    opts: [{ txt: '🩺 Consulta general (45€)', sig: 'cita_dia' }, { txt: '💉 Vacunación (30€)', sig: 'cita_dia' }, { txt: '✂️ Peluquería (desde 35€)', sig: 'cita_dia' }, { txt: '🚨 Urgencia 24h', sig: 'cita_urgencia' }]
+  },
+  cita_urgencia: {
+    bot: '🚨 Para urgencias llámanos directamente al **91 234 56 78** — estamos disponibles las 24 horas, los 7 días de la semana.',
+    opts: [{ txt: '⬅️ Volver al inicio', sig: 'inicio' }]
+  },
+  cita_dia: {
+    bot: '¿Qué día prefieres?',
+    opts: [{ txt: 'Hoy', sig: 'cita_hora' }, { txt: 'Mañana', sig: 'cita_hora' }, { txt: 'Esta semana', sig: 'cita_hora' }]
+  },
+  cita_hora: {
+    bot: '¿A qué hora te viene mejor?',
+    opts: [{ txt: '9:00', sig: 'cita_datos' }, { txt: '10:30', sig: 'cita_datos' }, { txt: '12:00', sig: 'cita_datos' }, { txt: '17:00', sig: 'cita_datos' }, { txt: '18:30', sig: 'cita_datos' }]
+  },
+  cita_datos: {
+    bot: 'Perfecto. ¿Tu nombre y el nombre de tu mascota?',
+    opts: [],
+    input: true,
+    sig: 'cita_confirm'
+  },
+  cita_confirm: {
+    bot: '✅ ¡Cita reservada! Te esperamos en Calle de Velázquez, 47. Recibirás confirmación por SMS. ¡Hasta pronto! 🐾',
+    opts: [{ txt: '⬅️ Volver al inicio', sig: 'inicio' }],
+    final: true
+  },
+  duda_inicio: {
+    bot: '¿Sobre qué tienes la duda?',
+    opts: [{ txt: '⏰ Horario', sig: 'duda_horario' }, { txt: '💊 Servicios y precios', sig: 'duda_servicios' }, { txt: '📍 Cómo llegar', sig: 'duda_llegar' }, { txt: '🐦 Animales exóticos', sig: 'duda_exoticos' }]
+  },
+  duda_horario: {
+    bot: '🕘 Nuestro horario es:\n\n**Lunes a Viernes:** 9:00 – 20:00\n**Sábados:** 9:00 – 14:00\n**Urgencias:** 24 horas, todos los días.',
+    opts: [{ txt: '⬅️ Volver', sig: 'duda_inicio' }]
+  },
+  duda_servicios: {
+    bot: '🩺 Nuestros servicios:\n\n• Consulta general: 45€\n• Vacunaciones: 30€\n• Cirugía: desde 200€\n• Urgencias 24h\n• Peluquería: desde 35€\n• Odontología: desde 80€',
+    opts: [{ txt: '🐾 Pedir cita', sig: 'cita_animal' }, { txt: '⬅️ Volver', sig: 'duda_inicio' }]
+  },
+  duda_llegar: {
+    bot: '📍 Estamos en **Calle de Velázquez, 47, Madrid**.\n\nMetro: Velázquez (L4) o Príncipe de Vergara (L9). Parking en Calle de Goya.',
+    opts: [{ txt: '⬅️ Volver', sig: 'duda_inicio' }]
+  },
+  duda_exoticos: {
+    bot: '🦜 Nuestra Dra. Sara López está especializada en animales exóticos — reptiles, aves, conejos, hurones y más. Llámanos al 91 234 56 78 para consultar.',
+    opts: [{ txt: '🐾 Pedir cita', sig: 'cita_animal' }, { txt: '⬅️ Volver', sig: 'duda_inicio' }]
+  }
+};
+
+let vetPasoActual = null;
+let vetUserSeleccion = {};
+
+function abrirVetChat() {
+  const modal = document.getElementById('vetChatModal');
+  modal.style.display = 'flex';
+  document.getElementById('vetFab').style.display = 'none';
+  if (!vetPasoActual) iniciarVetChat();
+}
+function cerrarVetChat() {
+  document.getElementById('vetChatModal').style.display = 'none';
+  document.getElementById('vetFab').style.display = 'flex';
+}
+function reiniciarVetChat() {
+  vetPasoActual = null;
+  vetUserSeleccion = {};
+  document.getElementById('vetChatMsgs').innerHTML = '';
+  document.getElementById('vetChatOpts').innerHTML = '';
+  document.getElementById('vetChatRestart').style.display = 'none';
+  iniciarVetChat();
+}
+function iniciarVetChat() {
+  mostrarVetPaso('inicio', null);
+}
+function mostrarVetPaso(id, userTxt) {
+  vetPasoActual = id;
+  const paso = VET_FLUJOS[id];
+  if (!paso) return;
+  if (userTxt) agregarVetMsg(userTxt, 'user');
+  setTimeout(() => {
+    mostrarVetTyping();
+    setTimeout(() => {
+      quitarVetTyping();
+      agregarVetMsg(paso.bot, 'bot');
+      renderVetOpts(paso);
+      if (paso.final) document.getElementById('vetChatRestart').style.display = 'block';
+    }, 700);
+  }, 200);
+}
+function mostrarVetTyping() {
+  const msgs = document.getElementById('vetChatMsgs');
+  const t = document.createElement('div');
+  t.id = 'vetTyping';
+  t.style.cssText = 'display:flex;gap:4px;align-items:center;padding:10px 14px;background:#fff;border-radius:12px 12px 12px 4px;width:fit-content;box-shadow:0 1px 4px rgba(0,0,0,0.08);';
+  t.innerHTML = '<span style="width:7px;height:7px;background:#0d4d4d;border-radius:50%;animation:vdot 1s infinite 0s"></span><span style="width:7px;height:7px;background:#0d4d4d;border-radius:50%;animation:vdot 1s infinite 0.2s"></span><span style="width:7px;height:7px;background:#0d4d4d;border-radius:50%;animation:vdot 1s infinite 0.4s"></span>';
+  msgs.appendChild(t);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function quitarVetTyping() { const t = document.getElementById('vetTyping'); if (t) t.remove(); }
+function agregarVetMsg(txt, tipo) {
+  const msgs = document.getElementById('vetChatMsgs');
+  const d = document.createElement('div');
+  const isBot = tipo === 'bot';
+  d.style.cssText = `max-width:85%;padding:10px 14px;border-radius:${isBot?'12px 12px 12px 4px':'12px 12px 4px 12px'};font-size:13px;line-height:1.5;align-self:${isBot?'flex-start':'flex-end'};background:${isBot?'#fff':'#0d4d4d'};color:${isBot?'#2d3748':'#fff'};box-shadow:0 1px 4px rgba(0,0,0,0.08);white-space:pre-line;`;
+  d.innerHTML = txt.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+  msgs.appendChild(d);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function renderVetOpts(paso) {
+  const opts = document.getElementById('vetChatOpts');
+  opts.innerHTML = '';
+  if (paso.input) {
+    const inp = document.createElement('input');
+    inp.placeholder = 'Escribe tu nombre y el de tu mascota...';
+    inp.style.cssText = 'width:100%;padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;font-size:13px;outline:none;font-family:inherit;';
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && inp.value.trim()) {
+        mostrarVetPaso(paso.sig, inp.value.trim());
+      }
+    });
+    opts.appendChild(inp);
+    setTimeout(() => inp.focus(), 100);
+  } else {
+    paso.opts.forEach(op => {
+      const btn = document.createElement('button');
+      btn.textContent = op.txt;
+      btn.style.cssText = 'padding:8px 14px;border:1px solid #0d4d4d;border-radius:100px;background:#fff;color:#0d4d4d;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;';
+      btn.onmouseover = () => { btn.style.background='#0d4d4d'; btn.style.color='#fff'; };
+      btn.onmouseout = () => { btn.style.background='#fff'; btn.style.color='#0d4d4d'; };
+      btn.onclick = () => mostrarVetPaso(op.sig, op.txt);
+      opts.appendChild(btn);
+    });
+  }
+}
+document.getElementById('vetChatModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('vetChatModal')) cerrarVetChat();
+});
+
+// Actualizar botones "Pedir cita online" para abrir chatbot
+document.querySelectorAll('a[href="#contacto"]').forEach(btn => {
+  if (btn.textContent.includes('cita')) {
+    btn.href = '#';
+    btn.addEventListener('click', e => { e.preventDefault(); abrirVetChat(); });
+  }
+});
+</script>
+<style>
+@keyframes vdot { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+</style>
+
 <script>
 // ── NAVBAR SCROLL ──
 const navbar = document.getElementById('navbar');
